@@ -6,6 +6,8 @@ from torchvision import transforms, models
 from sklearn.metrics import accuracy_score
 from dataset import CustomImageDataset, train_samples, val_samples
 from tqdm import tqdm
+from augment import train_transform, val_transform
+
 
 # ⚙️ 設定
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -21,8 +23,8 @@ transform = transforms.Compose([
 ])
 
 # 📂 Dataset & Loader
-train_dataset = CustomImageDataset(train_samples, transform=transform)
-val_dataset = CustomImageDataset(val_samples, transform=transform)
+train_dataset = CustomImageDataset(train_samples, transform=train_transform)
+val_dataset = CustomImageDataset(val_samples, transform=val_transform)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
