@@ -6,7 +6,9 @@ from torchvision import transforms, models
 from sklearn.metrics import accuracy_score
 from dataset import CustomImageDataset, train_samples, val_samples
 from tqdm import tqdm
+from collections import Counter
 from augment import train_transform, val_transform
+from losses import FocalLoss
 
 
 # ⚙️ 設定
@@ -28,13 +30,26 @@ val_dataset = CustomImageDataset(val_samples, transform=val_transform)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
+# 📦 1. 統計訓練資料中每個類別的樣本數
+train_labels = [s[1] for s in train_samples]
+label_count = Counter(train_labels)
+print("Train label distribution:", label_count)
+
+# 📦 2. 計算 class weights（樣本數越少，權重越大）
+total = sum(label_count.values())
+num_classes = len(label_count)
+class_weights = [total / (num_classes * label_count[i]) for i in range(num_classes)]
+class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
+print("Class Weights:", class_weights)
+
 # 🧠 模型：ResNet50
-model = models.resnet50(pretrained=True)
+model = models.resnet152(pretrained=True)
 model.fc = nn.Linear(model.fc.in_features, num_classes)
 model = model.to(device)
 
 # 🎯 Loss / Optimizer
-criterion = nn.CrossEntropyLoss()
+# criterion = nn.CrossEntropyLoss()
+criterion = FocalLoss(alpha=class_weights, gamma=2)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 # 📊 記錄用
@@ -67,7 +82,7 @@ for epoch in range(num_epochs):
     model.eval()
     val_loss, val_preds, val_labels = 0, [], []
     with torch.no_grad():
-        for x, y in tqdm(val_loader, desc=f"Epoch {epoch+1:02d} [Val]"):
+        for x, y in val_loader:
             x, y = x.to(device), y.to(device)
             out = model(x)
             loss = criterion(out, y)
